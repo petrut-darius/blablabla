@@ -1,0 +1,20 @@
+{
+    "name": "thepdi/php_scraper",
+    "required": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Thepdi\\PhpScraper\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "petrut-darius",
+            "email": "eminoviciidarius@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "^7.10"
+    }
+}
