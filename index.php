@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . "/../vendor/autoload.php";
 
+use Dom\Mysql;
 use GuzzleHttp\Client;
 
 $crawler = new Client([
@@ -14,26 +15,31 @@ $crawler = new Client([
 
 libxml_use_internal_errors(true);
 
-/*
-subcategories
+try{
+    $connection = mysqli_connect("127.0.0.1", "root", "", "Scraper");
+}catch(Throwable $e) {
+    print_r($e->getMessage());
+}
+
+//subcategories
 $visitedLinks = [];
 $results = [];
 
-$row = 1;
-if(($file = fopen("../storage/csv/mainCategories.csv", "r")) !== FALSE) {
-    while(($data = fgetcsv($file, 51)) !== FALSE) {
+if($mainCategories = mysqli_query($connection, "SELECT id, url FROM main_categories")) {
+    while($data = mysqli_fetch_assoc($mainCategories)) {
         //print_r($data[0] . PHP_EOL);
         
-        
-        $subCategoryResponse = $crawler->get($data[0]);
-        $subCategoryHtml = (string) $subCategoryResponse->getBody();
+        echo $data["url"] . PHP_EOL;
 
-        $subCategoryDOM = new DOMDocument();
-        $subCategoryDOM->loadHTML($subCategoryHtml);
-        $subCategoryXpath = new DOMXPath($subCategoryDOM);
+        $categoryResponse = $crawler->get($data["url"]);
+        $categoryHtml = (string) $categoryResponse->getBody();
+
+        $categoryDOM = new DOMDocument();
+        $categoryDOM->loadHTML($categoryHtml);
+        $categoryXpath = new DOMXPath($categoryDOM);
     
         //$outputFile = fopen("../storage/csv/subCategories.csv", "a+");
-        $subCategoryNodes = $subCategoryXpath->query("//div[contains(@class, 'col-xs-4')]/a[1]");
+        $subCategoryNodes = $categoryXpath->query("//div[contains(@class, 'col-xs-4')]/a[1]");
     
         foreach($subCategoryNodes as $subCategoryNode) {
             $subCategoryLink = $subCategoryNode->getAttribute("href");
@@ -48,22 +54,51 @@ if(($file = fopen("../storage/csv/mainCategories.csv", "r")) !== FALSE) {
                 $subCategoryLink = "https://www.bebebliss.ro" . $subCategoryLink;
             }
 
+            $subCategoryResponse = $crawler->get($subCategoryLink);
+            $subCategoryHtml = (string) $subCategoryResponse->getBody();
+
+            $subCategoryDOM = new DOMDocument();
+            $subCategoryDOM->loadHTML($subCategoryHtml);
+            $subCategoryXPath = new DOMXPath($subCategoryDOM);
+
+            $pageTitleNode = $subCategoryXPath->query("//div[contains(@class, 'page-title')]/h1[1]");
+            $pageInfoNode = $subCategoryXPath->query("//div[@id='category-description']");
+
+            $pageTitle = $pageTitleNode->item(0);
+            $pageTitleHtml = $subCategoryDOM->saveHTML($pageTitle);
+
+            $pageInfoHtml = "";
+            if($pageInfoNode->length > 0) {
+                $pageInfo = $pageInfoNode->item(0);
+                
+                foreach($pageInfo->childNodes as $child) {
+                    $pageInfoHtml .= $subCategoryDOM->saveHTML($child);
+                }
+            }
+
+
             $results[] = [
-                (string) $subCategoryLink
+                (int) $data["id"],
+                (string) trim($subCategoryLink),
+                (string) trim($pageTitleHtml),
+                (string) trim($pageInfoHtml),
             ];
         }
     }
 }
-fclose($file);
 
-$outputFile = fopen("../storage/csv/subCategories.csv", "w+");
 foreach($results as $result) {
-    fputcsv($outputFile, $result);
+    $id   = (int)$result[0];
+    $url  = mysqli_real_escape_string($connection, $result[1]);
+    $name = mysqli_real_escape_string($connection, $result[2]);
+    $info = mysqli_real_escape_string($connection, $result[3]);
+
+    $sql = "INSERT INTO `sub_categories` (main_categories_id, url, name, info) 
+            VALUES ('$id', '$url', '$name', '$info')";
+
+    mysqli_query($connection, $sql);
 }
-fclose($outputFile);
-*/
-
-
+echo "okey" . PHP_EOL;
 /*
 //mainCategories
 
@@ -79,7 +114,6 @@ $visitedProducts = [];
 $results = [];
 
 $mainCategoryNodes = $xpath->query("//li[contains(@class, 'menu-full-width')]/a[1]");
-$file = fopen("../storage/csv/mainCategories.csv", "w+");
 
 foreach($mainCategoryNodes as $mainCategoryNode) {
     $categoryLink = $mainCategoryNode->getAttribute("href");
@@ -94,13 +128,38 @@ foreach($mainCategoryNodes as $mainCategoryNode) {
         $categoryLink = "https://www.bebebliss.ro/" . $categoryLink;
     }
 
+    $categoryResponse = $crawler->get($categoryLink);
+    $categoryHtml = (string) $categoryResponse->getBody();
+    $categoryDoc = new DOMDOCUMENT();
+    $categoryDoc->loadHTML($categoryHtml);
+    $categoryXPath = new DOMXPath($categoryDoc);
+
+    $pageTitleNode = $categoryXPath->query("//div[contains(@class, 'page-title')]/h1[1]");
+    $pageInfoNode = $categoryXPath->query("//div[@id='category-description']");
+
+    $pageTitle = $pageTitleNode->item(0);
+    $pageTitleHtml = $categoryDoc->saveHTML($pageTitle);
+
+    $pageInfoHtml = "";
+    if($pageInfoNode->length > 0) {
+        $pageInfo = $pageInfoNode->item(0);
+        
+        foreach($pageInfo->childNodes as $child) {
+            $pageInfoHtml .= $categoryDoc->saveHTML($child);
+        }
+    }
+
+
     $results[] = [
-        (string) $categoryLink
+        (string) trim($categoryLink),
+        (string) trim($pageTitleHtml),
+        (string) trim($pageInfoHtml),
     ];
 }
 
+
 foreach ($results as $result) {
-    fputcsv($file, $result);
+    mysqli_query($connection, "INSERT INTO `main_categories` (name, url, info) VALUES ('" . $result[1] . "', '" . $result[0]. "', '" . $result[2]. "' )");
 }
-fclose($file);
+echo "okey" . PHP_EOL;
 */
