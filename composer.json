@@ -16,5 +16,8 @@
     ],
     "require": {
         "guzzlehttp/guzzle": "^7.10"
+    },
+    "require-dev": {
+        "zoon/puphpeteer": "^2.4"
     }
 }

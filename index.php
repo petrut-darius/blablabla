@@ -1,19 +1,8 @@
 <?php
 require __DIR__ . "/../vendor/autoload.php";
 
-use Dom\Mysql;
-use GuzzleHttp\Client;
-
-$crawler = new Client([
-    'headers' => [
-        'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept'     => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language' => 'en-US,en;q=0.5',
-    ],
-    'timeout' => 15,
-]);
-
-libxml_use_internal_errors(true);
+use Nesk\Puphpeteer\Puppeteer;
+use Nesk\Rialto\Data\JsFunction;
 
 try{
     $connection = mysqli_connect("127.0.0.1", "root", "", "Scraper");
@@ -21,6 +10,16 @@ try{
     print_r($e->getMessage());
 }
 
+$puppeteer = new Puppeteer();
+$browser = $puppeteer->launch([
+    "headless" => false,
+    "args" => [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+    ]
+]);
+
+/*
 //subcategories
 $visitedLinks = [];
 $results = [];
@@ -30,60 +29,56 @@ if($mainCategories = mysqli_query($connection, "SELECT id, url FROM main_categor
         //print_r($data[0] . PHP_EOL);
         
         echo $data["url"] . PHP_EOL;
-
-        $categoryResponse = $crawler->get($data["url"]);
-        $categoryHtml = (string) $categoryResponse->getBody();
-
-        $categoryDOM = new DOMDocument();
-        $categoryDOM->loadHTML($categoryHtml);
-        $categoryXpath = new DOMXPath($categoryDOM);
     
-        //$outputFile = fopen("../storage/csv/subCategories.csv", "a+");
-        $subCategoryNodes = $categoryXpath->query("//div[contains(@class, 'col-xs-4')]/a[1]");
-    
-        foreach($subCategoryNodes as $subCategoryNode) {
-            $subCategoryLink = $subCategoryNode->getAttribute("href");
+        $page = $browser->newPage();
+        $page->goto($data["url"]);
+        $page->waitForSelector("div.col-xs-4 > a");
+        
+        $subCategoryLinks = $page->evaluate(JsFunction::createWithBody("
+            return Array.from(
+                document.querySelectorAll('div.col-xs-4 > a')
+            ).map(a => a.href);
+        "));
 
-            if(in_array($subCategoryLink, $visitedLinks)) {
+
+        foreach($subCategoryLinks as $subCategoryLink) {
+
+            if(isset($visitedLinks[$subCategoryLink])) {
                 continue;
             }else{
-                $visitedLinks[] = $subCategoryLink;
+                $visitedLinks[$subCategoryLink] = true;
             }
 
             if(!str_starts_with($subCategoryLink, "http")) {
                 $subCategoryLink = "https://www.bebebliss.ro" . $subCategoryLink;
             }
 
-            $subCategoryResponse = $crawler->get($subCategoryLink);
-            $subCategoryHtml = (string) $subCategoryResponse->getBody();
+            //echo $subCategoryLink . PHP_EOL;
 
-            $subCategoryDOM = new DOMDocument();
-            $subCategoryDOM->loadHTML($subCategoryHtml);
-            $subCategoryXPath = new DOMXPath($subCategoryDOM);
+            $page->goto($subCategoryLink, [
+                "waitUntil" => "networkidle0"
+            ]);
 
-            $pageTitleNode = $subCategoryXPath->query("//div[contains(@class, 'page-title')]/h1[1]");
-            $pageInfoNode = $subCategoryXPath->query("//div[@id='category-description']");
+            $page->waitForSelector(".page-title > h1");
+            
+            $pageData = $page->evaluate(JsFunction::createWithBody("
+                const titleElement = document.querySelector('.page-title h1');
+                const infoElement = document.querySelector('#category-description');
 
-            $pageTitle = $pageTitleNode->item(0);
-            $pageTitleHtml = $subCategoryDOM->saveHTML($pageTitle);
-
-            $pageInfoHtml = "";
-            if($pageInfoNode->length > 0) {
-                $pageInfo = $pageInfoNode->item(0);
-                
-                foreach($pageInfo->childNodes as $child) {
-                    $pageInfoHtml .= $subCategoryDOM->saveHTML($child);
+                return {
+                    title: titleElement ? titleElement.innerText.trim() : null,
+                    info : infoElement ? infoElement.innerHTML.trim() : null
                 }
-            }
-
+            "));
 
             $results[] = [
                 (int) $data["id"],
                 (string) trim($subCategoryLink),
-                (string) trim($pageTitleHtml),
-                (string) trim($pageInfoHtml),
+                (string) trim($pageData["title"]),
+                (string) trim($pageData["info"]),
             ];
         }
+        $page->close();
     }
 }
 
@@ -99,67 +94,77 @@ foreach($results as $result) {
     mysqli_query($connection, $sql);
 }
 echo "okey" . PHP_EOL;
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 //mainCategories
 
-$mainResponse = $crawler->get("https://www.bebebliss.ro/");
-$mainHtml = (string) $mainResponse->getBody();
+$page = $browser->newPage();
+$page->goto("https://www.bebebliss.ro");
+$page->waitForSelector("li.menu-full-width > a");
 
-$doc = new DOMDocument();
-$doc->loadHTML($mainHtml);
-$xpath = new DOMXPath($doc);
-
-
-$visitedProducts = [];
+$visitedCategories = [];
 $results = [];
 
-$mainCategoryNodes = $xpath->query("//li[contains(@class, 'menu-full-width')]/a[1]");
+$mainCategoryLinks = $page->evaluate(JsFunction::createWithBody("
+    return Array.from(
+        document.querySelectorAll('li.menu-full-width > a')
+    ).map(a => a.href);
+"));
 
-foreach($mainCategoryNodes as $mainCategoryNode) {
-    $categoryLink = $mainCategoryNode->getAttribute("href");
+foreach($mainCategoryLinks as $categoryLink) {
     
-    if(in_array($categoryLink, $visitedProducts)) {
+    if(isset($visitedCategories[$categoryLink])) {
         continue;
     }else{
-        $visitedProducts[] = $categoryLink;
+        $visitedCategories[$categoryLink] = true;
     }
 
     if(!str_starts_with($categoryLink, "http")) {
         $categoryLink = "https://www.bebebliss.ro/" . $categoryLink;
     }
 
-    $categoryResponse = $crawler->get($categoryLink);
-    $categoryHtml = (string) $categoryResponse->getBody();
-    $categoryDoc = new DOMDOCUMENT();
-    $categoryDoc->loadHTML($categoryHtml);
-    $categoryXPath = new DOMXPath($categoryDoc);
+    echo $categoryLink . PHP_EOL;
 
-    $pageTitleNode = $categoryXPath->query("//div[contains(@class, 'page-title')]/h1[1]");
-    $pageInfoNode = $categoryXPath->query("//div[@id='category-description']");
+    $page->goto($categoryLink, [
+        "waitUntil" => "networkidle0",
+    ]);
 
-    $pageTitle = $pageTitleNode->item(0);
-    $pageTitleHtml = $categoryDoc->saveHTML($pageTitle);
+    $page->waitForSelector(".page-title h1");
 
-    $pageInfoHtml = "";
-    if($pageInfoNode->length > 0) {
-        $pageInfo = $pageInfoNode->item(0);
-        
-        foreach($pageInfo->childNodes as $child) {
-            $pageInfoHtml .= $categoryDoc->saveHTML($child);
+    $data = $page->evaluate(JsFunction::createWithBody("
+        const titleElement = document.querySelector('.page-title h1');
+        const infoElement = document.querySelector('#category-description');
+
+        return {
+            title: titleElement ? titleElement.innerText.trim() : null,
+            info : infoElement ? infoElement.innerHTML.trim() : null
         }
-    }
-
+    "));
 
     $results[] = [
         (string) trim($categoryLink),
-        (string) trim($pageTitleHtml),
-        (string) trim($pageInfoHtml),
+        (string) trim($data["title"]),
+        (string) trim($data["info"]),
     ];
 }
-
 
 foreach ($results as $result) {
     mysqli_query($connection, "INSERT INTO `main_categories` (name, url, info) VALUES ('" . $result[1] . "', '" . $result[0]. "', '" . $result[2]. "' )");
 }
 echo "okey" . PHP_EOL;
+
+$browser->close();
 */
