@@ -1,0 +1,38 @@
+CREATE TABLE main_categories (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT NOT NULL
+)ENGINE=InnoDB;
+ 
+ CREATE TABLE sub_categories ( 
+     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
+     main_category_id INT UNSIGNED NOT NULL, 
+     url VARCHAR(255) NOT NULL,
+     image_url VARCHAR(255) NOT NULL,
+     UNIQUE KEY uniq_sub_category (main_category_id, url),
+     CONSTRAINT fk_sub_categories_main_categories 
+         FOREIGN KEY (main_category_id)
+         REFERENCES main_categories(id)
+         ON DELETE CASCADE 
+     	 ON UPDATE CASCADE,
+     KEY idx_main_category_id (main_category_id)
+)ENGINE=INNODB;
+
+CREATE TABLE questions ( 
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    questionable_id INT UNSIGNED NOT NULL, 
+    questionable_type VARCHAR(50) NOT NULL, 
+    title VARCHAR(255) NOT NULL, 
+    response TEXT NOT NULL, 
+    KEY idx_questionable (questionable_id, questionable_type) 
+) ENGINE=INNODB;
+
+CREATE TABLE descriptions (
+	id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    descriptionable_id INT UNSIGNED NOT NULL,
+    descriptionable_type VARCHAR(50) NOT NULL,
+	format VARCHAR(10) NOT NULL,
+    content TEXT NOT NULL,
+	KEY idx_descriptionable (descriptionable_id, descriptionable_type)
+) ENGINE=INNODB;
