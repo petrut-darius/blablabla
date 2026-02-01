@@ -1,11 +1,11 @@
-CREATE TABLE main_categories (
+CREATE TABLE IF NOT EXISTS main_categories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     url VARCHAR(255) NOT NULL UNIQUE,
     description TEXT NOT NULL
 )ENGINE=InnoDB;
  
- CREATE TABLE sub_categories ( 
+ CREATE TABLE IF NOT EXISTS sub_categories ( 
      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
      main_category_id INT UNSIGNED NOT NULL, 
      url VARCHAR(255) NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE main_categories (
      KEY idx_main_category_id (main_category_id)
 )ENGINE=INNODB;
 
-CREATE TABLE questions ( 
+CREATE TABLE IF NOT EXISTS questions ( 
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     questionable_id INT UNSIGNED NOT NULL, 
     questionable_type VARCHAR(50) NOT NULL, 
@@ -28,7 +28,7 @@ CREATE TABLE questions (
     KEY idx_questionable (questionable_id, questionable_type) 
 ) ENGINE=INNODB;
 
-CREATE TABLE descriptions (
+CREATE TABLE IF NOT EXISTS descriptions (
 	id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     descriptionable_id INT UNSIGNED NOT NULL,
     descriptionable_type VARCHAR(50) NOT NULL,
